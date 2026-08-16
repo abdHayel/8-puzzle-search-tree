@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شجرة حالات ٨-Puzzle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0A1220;
+    --bg-grid: rgba(148,163,184,0.055);
+    --panel: #101B2D;
+    --panel-soft: #0D1728;
+    --panel-border: #223449;
+    --line: #2C4059;
+    --text: #E7EDF5;
+    --text-muted: #7E90AA;
+    --text-faint: #4F607E; /* unused fallback */
+    --gold: #F2B84B;
+    --gold-dim: rgba(242,184,75,0.14);
+    --blue: #57B6E8;
+    --blue-dim: rgba(87,182,232,0.14);
+  }
+ 
+  *{ box-sizing:border-box; }
+ 
+  html,body{
+    margin:0;
+    min-height:100vh;
+    background:
+      repeating-linear-gradient(0deg, var(--bg-grid) 0 1px, transparent 1px 40px),
+      repeating-linear-gradient(90deg, var(--bg-grid) 0 1px, transparent 1px 40px),
+      var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+  }
+ 
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+ 
+  .page{
+    max-width:1180px;
+    margin:0 auto;
+    padding:56px 28px 90px;
+  }
+ 
+  /* ---------- Header ---------- */
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.18em;
+    color:var(--blue);
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .eyebrow::before{
+    content:'';
+    width:22px; height:1px;
+    background:var(--blue);
+    display:inline-block;
+  }
+  h1{
+    font-size:clamp(28px, 4vw, 42px);
+    font-weight:700;
+    margin:0 0 12px;
+    line-height:1.25;
+  }
+  .lede{
+    color:var(--text-muted);
+    font-size:15.5px;
+    line-height:1.9;
+    max-width:680px;
+    margin:0;
+  }
+ 
+  /* ---------- Start-state card ---------- */
+  .card{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:10px;
+    padding:18px 20px;
+  }
+  .start-card{
+    margin-top:36px;
+    display:inline-flex;
+    align-items:center;
+    gap:18px;
+  }
+  .start-card .label{
+    font-size:12.5px;
+    color:var(--text-muted);
+    letter-spacing:0.03em;
+  }
+  .start-card .label b{ color:var(--text); display:block; font-size:14.5px; margin-bottom:2px; font-weight:600;}
+ 
+  /* ---------- Step control ---------- */
+  .step-bar{
+    margin-top:18px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  .step-btn{
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    color:#0A1220;
+    background:var(--gold);
+    border:none;
+    border-radius:8px;
+    padding:10px 18px;
+    cursor:pointer;
+    transition:transform .15s ease, filter .15s ease, opacity .15s ease;
+  }
+  .step-btn:hover:not(:disabled){ filter:brightness(1.08); transform:translateY(-1px); }
+  .step-btn:active:not(:disabled){ transform:translateY(0); }
+  .step-btn:disabled{ opacity:.35; cursor:default; }
+  .step-indicator{
+    font-size:13.5px;
+    color:var(--text-muted);
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .step-indicator .mono{ color:var(--text); font-size:15px; font-weight:600; }
+ 
+  /* ---------- Tree ---------- */
+  .tree-wrap{
+    margin-top:44px;
+    background:var(--panel-soft);
+    border:1px solid var(--panel-border);
+    border-radius:12px;
+    overflow-x:auto;
+    padding:44px 30px 30px;
+  }
+ 
+  .tree, .tree ul, .tree li{
+    margin:0; padding:0; list-style:none;
+  }
+  .tree{
+    direction:ltr;
+    display:flex;
+    justify-content:center;
+    min-width:max-content;
+  }
+  .tree ul{
+    padding-top:26px;
+    position:relative;
+    display:flex;
+  }
+  .tree li{
+    flex:1;
+    text-align:center;
+    position:relative;
+    padding:26px 10px 0 10px;
+  }
+  .tree li::before, .tree li::after{
+    content:'';
+    position:absolute;
+    top:0; right:50%;
+    border-top:1.5px solid var(--line);
+    width:50%; height:26px;
+  }
+  .tree li::after{ right:auto; left:50%; border-left:1.5px solid var(--line); }
+  .tree li:only-child::after, .tree li:only-child::before{ display:none; }
+  .tree li:only-child{ padding-top:0; }
+  .tree li:first-child::before{ border:none; }
+  .tree li:last-child::after{ border:none; }
+  .tree li:last-child::before{ border-right:1.5px solid var(--line); border-radius:0 6px 0 0; }
+  .tree li:first-child::after{ border-radius:6px 0 0 0; }
+  .tree ul ul::before{
+    content:'';
+    position:absolute;
+    top:0; left:50%;
+    border-left:1.5px solid var(--line);
+    width:0; height:26px;
+  }
+ 
+  .move-tag{
+    position:absolute;
+    top:2px; left:50%;
+    transform:translateX(-50%);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:var(--blue);
+    background:var(--bg-grid);
+    background:var(--panel-soft);
+    padding:1px 7px;
+    border:1px solid var(--line);
+    border-radius:20px;
+    white-space:nowrap;
+    letter-spacing:.02em;
+  }
+ 
+  .node{
+    display:inline-block;
+    position:relative;
+    background:var(--panel);
+    border:1.5px solid var(--panel-border);
+    border-radius:9px;
+    padding:8px;
+  }
+  .node.is-root{ border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-dim); }
+  .node.is-goal{ border-color:var(--gold); box-shadow:0 0 0 3px var(--gold-dim); }
+  .tree.solution-active .node.is-solution{
+    border-color:var(--blue);
+    box-shadow:0 0 0 3px var(--gold-dim), 0 0 0 4.5px var(--blue);
+  }
+  .tree.solution-active .move-tag.is-solution{
+    color:#0A1220;
+    background:var(--gold);
+    border-color:var(--blue);
+    font-weight:700;
+  }
+  .solution-flag{
+    position:absolute;
+    bottom:-11px; left:50%;
+    transform:translateX(-50%);
+    font-size:9px;
+    font-family:'IBM Plex Mono', monospace;
+    color:#0A1220;
+    background:linear-gradient(90deg, var(--blue), var(--gold));
+    padding:2px 7px;
+    border-radius:20px;
+    font-weight:700;
+    white-space:nowrap;
+    display:none;
+  }
+  .tree.solution-active .solution-flag{ display:inline-block; }
+ 
+  .goal-flag{
+    position:absolute;
+    bottom:-11px; left:50%;
+    transform:translateX(-50%);
+    font-size:9.5px;
+    font-family:'IBM Plex Mono', monospace;
+    color:#0A1220;
+    background:var(--gold);
+    padding:2px 7px;
+    border-radius:20px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+ 
+  .grid3{
+    display:grid;
+    grid-template-columns:repeat(3, 30px);
+    grid-template-rows:repeat(3, 30px);
+    gap:4px;
+  }
+  .cell{
+    display:flex; align-items:center; justify-content:center;
+    background:var(--panel-soft);
+    border:1px solid var(--line);
+    border-radius:5px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:15px;
+    color:var(--text);
+    font-weight:500;
+  }
+  .cell.blank{
+    background:transparent;
+    border-style:dashed;
+    border-color:var(--panel-border);
+  }
+ 
+  footer{
+    margin-top:20px;
+    font-size:12.5px;
+    color:var(--text-muted);
+    line-height:1.8;
+  }
+ 
+  /* ---------- Level report (levels 6-25) ---------- */
+  .report{
+    margin-top:18px;
+    background:var(--panel-soft);
+    border:1px solid var(--panel-border);
+    border-radius:12px;
+    padding:8px 22px;
+  }
+  .report-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:11px 0;
+    border-bottom:1px solid var(--panel-border);
+    font-size:14px;
+  }
+  .report-row:last-child{ border-bottom:none; }
+  .report-row .lvl{
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--blue);
+    min-width:78px;
+    font-size:13px;
+  }
+  .report-row .count{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    color:var(--text);
+    min-width:110px;
+  }
+  .report-row .desc{ color:var(--text-muted); flex:1; }
+  .report-row.is-hit{
+    background:var(--gold-dim);
+    margin:0 -22px;
+    padding:11px 22px;
+    border-radius:8px;
+    border-bottom:1px solid transparent;
+  }
+  .report-row.is-hit .lvl, .report-row.is-hit .count{ color:var(--gold); }
+  .report-row.is-hit .desc{ color:var(--text); font-weight:600; }
+  .report-empty{
+    padding:16px 0;
+    color:var(--text-muted);
+    font-size:13px;
+    text-align:center;
+  }
+ 
+  @media (max-width:640px){
+    .page{ padding:40px 16px 70px; }
+    .control-row{ flex-direction:column; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+ 
+  <div class="eyebrow">8-PUZZLE · SEARCH TREE</div>
+  <h1>شجرة الحالات</h1>
+  <p class="lede">
+    كل مربّع هو حالة للّوح، وكل سهم هو حركة وحدة للخانة الفارغة (⬆⬇⬅➡).
+    اضغط "التالي" لتكشف الشجرة مستوى مستوى — لغاية مستوى ٥ منرسمها كمربعات،
+    وبعدها بضغطة وحدة منعرض كل المستويات الباقية لغاية ٣٠ كعدّاد أرقام.
+  </p>
+  <p class="lede" style="margin-top:10px; font-size:13.5px;">
+    <span class="mono" style="color:var(--blue)">■</span><span class="mono" style="color:var(--gold)">■</span>
+    بعد آخر ضغطة (لما تظهر كل المستويات لغاية ٣٠)، بينلوّن أزرق+ذهبي المسار يلي هو بداية المسارين الوحيدين يلي بيوصلوا لحالة الهدف بمستوى ٢٠ بالضبط.
+  </p>
+ 
+  <div class="card start-card">
+    <div id="startGrid"></div>
+    <div class="label"><b>الحالة الابتدائية</b>جذر الشجرة</div>
+  </div>
+ 
+  <div class="step-bar">
+    <button class="step-btn" id="prevBtn" aria-label="المستوى السابق">◀ السابق</button>
+    <div class="step-indicator">
+      المستوى المعروض
+      <span class="mono" id="levelNow">0</span>
+      من
+      <span class="mono" id="levelMax">30</span>
+    </div>
+    <button class="step-btn" id="nextBtn" aria-label="المستوى التالي">التالي ▶</button>
+  </div>
+ 
+  <div class="tree-wrap">
+    <div class="tree" id="treeContainer"></div>
+  </div>
+ 
+  <div class="report" id="reportPanel">
+    <div class="report-empty" id="reportEmpty">من مستوى ٦ وطالع، ضغطة وحدة كمان بتعرضلك كل المستويات لغاية ٣٠ مرة وحدة.</div>
+  </div>
+ 
+</div>
+ 
+<script>
+const GOAL = [1,2,3,4,5,6,7,8,0];
+const DIRS = [
+  ['up',   -1, 0, '⬆ فوق'],
+  ['down',  1, 0, '⬇ تحت'],
+  ['left',  0,-1, '⬅ يسار'],
+  ['right', 0, 1, '➡ يمين'],
+];
+const OPP = { up:'down', down:'up', left:'right', right:'left' };
+ 
+function neighbors(state, lastMove){
+  const idx = state.indexOf(0);
+  const r = Math.floor(idx/3), c = idx%3;
+  const out = [];
+  for(const [name, dr, dc, arabicLabel] of DIRS){
+    const nr = r+dr, nc = c+dc;
+    if(nr<0||nr>2||nc<0||nc>2) continue;
+    if(lastMove && name === OPP[lastMove]) continue;
+    const nidx = nr*3+nc;
+    const next = state.slice();
+    [next[idx], next[nidx]] = [next[nidx], next[idx]];
+    out.push({name, arabicLabel, state: next});
+  }
+  return out;
+}
+ 
+function buildTree(state, depth, lastMove){
+  const node = { state, children: [] };
+  if(depth === 0) return node;
+  for(const mv of neighbors(state, lastMove)){
+    node.children.push({ move: mv.arabicLabel, moveName: mv.name, node: buildTree(mv.state, depth-1, mv.name) });
+  }
+  return node;
+}
+ 
+function gridHTML(state){
+  let html = '<div class="grid3">';
+  for(const v of state){
+    html += v === 0
+      ? '<div class="cell blank"></div>'
+      : `<div class="cell">${v}</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+ 
+// أول 5 خطوات مشتركة بين المسارين الوحيدين يلي بيوصلوا لحالة الهدف بمستوى 20 بالضبط
+const SOLUTION_PREFIX = ['up','right','down','down','left'];
+ 
+function renderNode(node, isRoot, moveLabel, level, movePath){
+  const isGoal = JSON.stringify(node.state) === JSON.stringify(GOAL);
+  const onSolutionPath = level <= SOLUTION_PREFIX.length &&
+    movePath.every((m, i) => m === SOLUTION_PREFIX[i]);
+  let html = '<li>';
+  if(moveLabel){
+    html += `<span class="move-tag ${onSolutionPath?'is-solution':''}">${moveLabel}</span>`;
+  }
+  html += `<div class="node ${isRoot?'is-root':''} ${isGoal?'is-goal':''} ${(!isRoot && onSolutionPath)?'is-solution':''}">`;
+  html += gridHTML(node.state);
+  if(isGoal) html += '<span class="goal-flag">هدف 🎯</span>';
+  if(!isRoot && onSolutionPath && level === SOLUTION_PREFIX.length) html += '<span class="solution-flag">↦ طريق الحل ٢٠</span>';
+  html += '</div>';
+  if(node.children.length){
+    html += `<ul data-level="${level+1}">`;
+    for(const ch of node.children){
+      html += renderNode(ch.node, false, ch.move, level+1, [...movePath, ch.moveName]);
+    }
+    html += '</ul>';
+  }
+  html += '</li>';
+  return html;
+}
+ 
+const BOX_DEPTH = 5;
+const MAX_LEVEL = 30;
+let currentLevel = 0;
+ 
+// عدد الحالات الفعلي بكل مستوى (شجرة بدون تكرار آخر حركة) + عدد المسارات يلي بتوصل لحالة الهدف بالضبط
+const LEVEL_COUNTS = {
+  0:1, 1:4, 2:8, 3:8, 4:16, 5:32, 6:64, 7:80, 8:160, 9:272, 10:544,
+  11:752, 12:1504, 13:2384, 14:4768, 15:6896, 16:13792, 17:21200,
+  18:42400, 19:62576, 20:125152, 21:189776, 22:379552, 23:565232,
+  24:1130464, 25:1703888, 26:3407776, 27:5095280, 28:10190560,
+  29:15318608, 30:30637216
+};
+const GOAL_HITS = { 20: 2, 24: 7, 26: 28, 28: 84, 30: 249 }; // مستويات لقينا فيها مسارات توصل لحالة الهدف
+ 
+function fmt(n){ return n.toLocaleString('en-US'); }
+ 
+function updateVisibility(){
+  document.querySelectorAll('.tree ul[data-level]').forEach(ul => {
+    const lvl = Number(ul.dataset.level);
+    ul.style.display = lvl <= currentLevel ? '' : 'none';
+  });
+  document.getElementById('levelNow').textContent = currentLevel;
+  document.getElementById('treeContainer').classList.toggle('solution-active', currentLevel === MAX_LEVEL);
+ 
+  const nextBtn = document.getElementById('nextBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  prevBtn.disabled = currentLevel === 0;
+  if(currentLevel < BOX_DEPTH){
+    nextBtn.textContent = 'التالي ▶';
+    nextBtn.disabled = false;
+  } else if(currentLevel === BOX_DEPTH){
+    nextBtn.textContent = `اعرض باقي المستويات (٦-${MAX_LEVEL}) ▶▶`;
+    nextBtn.disabled = false;
+  } else {
+    nextBtn.textContent = 'كل المستويات معروضة';
+    nextBtn.disabled = true;
+  }
+ 
+  const panel = document.getElementById('reportPanel');
+  if(currentLevel <= BOX_DEPTH){
+    panel.innerHTML = '<div class="report-empty" id="reportEmpty">من مستوى ٦ وطالع، ضغطة وحدة كمان بتعرضلك كل المستويات لغاية ٣٠ مرة وحدة.</div>';
+    return;
+  }
+  let rows = '';
+  for(let lvl = BOX_DEPTH + 1; lvl <= currentLevel; lvl++){
+    const count = LEVEL_COUNTS[lvl];
+    const hits = GOAL_HITS[lvl];
+    if(hits){
+      rows += `<div class="report-row is-hit">
+        <span class="lvl">مستوى ${lvl}</span>
+        <span class="count">${fmt(count)} حالة</span>
+        <span class="desc">🎯 لقينا ${hits === 1 ? 'مسار وحد' : hits + ' مسارات'} بتوصل لحالة الهدف بهالمستوى بالضبط!</span>
+      </div>`;
+    } else {
+      rows += `<div class="report-row">
+        <span class="lvl">مستوى ${lvl}</span>
+        <span class="count">${fmt(count)} حالة</span>
+        <span class="desc">ولا وحدة منهم حالة الهدف</span>
+      </div>`;
+    }
+  }
+  panel.innerHTML = rows;
+}
+ 
+function render(startState){
+  const tree = buildTree(startState, BOX_DEPTH, null);
+  document.getElementById('startGrid').innerHTML = gridHTML(startState);
+  document.getElementById('levelMax').textContent = MAX_LEVEL;
+  const container = document.getElementById('treeContainer');
+  container.innerHTML = `<ul>${renderNode(tree, true, null, 0, [])}</ul>`;
+  currentLevel = 0;
+  updateVisibility();
+}
+ 
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if(currentLevel < BOX_DEPTH){
+    currentLevel++;
+  } else if(currentLevel === BOX_DEPTH){
+    currentLevel = MAX_LEVEL; // اعرض كل المستويات الباقية دفعة وحدة
+  }
+  updateVisibility();
+});
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if(currentLevel === MAX_LEVEL){
+    currentLevel = BOX_DEPTH; // اطوي التقرير وارجع لآخر مستوى مرسوم
+  } else if(currentLevel > 0){
+    currentLevel--;
+  }
+  updateVisibility();
+});
+ 
+// نفس اللغز يلي بالصورة: 8 7 3 / 2 _ 5 / 4 6 1
+const START_STATE = [8,7,3,2,0,5,4,6,1];
+render(START_STATE);
+</script>
+</body>
+</html>
+ 
